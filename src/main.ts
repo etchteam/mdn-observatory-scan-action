@@ -17,7 +17,7 @@ try {
 
   const results = `
   # HTTP Observatory Results
-  
+
   ## Summary
 
   - Grade: ${output.scan.grade}
