@@ -31,8 +31,8 @@ SHOW_ELAPSED_TIME: true
 FILEIO_REPORTER: false
 
 # Config paths
-JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.js
-TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.js
+JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.json
+TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.json
 
 # Linters configuration
 REPOSITORY_GITLEAKS_DISABLE_ERRORS: true
