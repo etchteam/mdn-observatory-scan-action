@@ -1,18 +1,20 @@
+import { execSync } from 'child_process';
+
 import * as core from '@actions/core';
-import { execSync } from "child_process";
+
 import { Response } from './Response.type.js';
 
 try {
-  const host = core.getInput("host", { required: true});
-  const scoreInput = core.getInput("passing-score", {
-    required: false
+  const host = core.getInput('host', { required: true });
+  const scoreInput = core.getInput('passing-score', {
+    required: false,
   });
   const passingScore = scoreInput.length > 0 ? parseInt(scoreInput, 10) : 100;
 
   const scan = execSync(`npx @mdn/mdn-http-observatory ${host}`);
 
   const output: Response = JSON.parse(scan.toString());
-  
+
   const results = `
   # HTTP Observatory Results
   
@@ -32,13 +34,22 @@ try {
         <th>Score</th>
       </tr>
     </thead>
-    <tbody>${Object.entries(output.tests).map(([key, value]) => `
+    <tbody>${Object.entries(output.tests)
+      .map(
+        ([key, value]) => `
       <tr>
-        <td>${key.split('-').map(p => `${String(p).charAt(0).toUpperCase()}${String(p).slice(1)}`).join(' ')}</td>
+        <td>${key
+          .split('-')
+          .map(
+            (p) => `${String(p).charAt(0).toUpperCase()}${String(p).slice(1)}`,
+          )
+          .join(' ')}</td>
         <td>${value.pass === true ? 'Pass' : 'Fail'}</td>
         <td>${value.scoreModifier}</td>
       </tr>
-  `).join('')}  </tbody>
+  `,
+      )
+      .join('')}  </tbody>
   </table>
   `;
 
@@ -49,7 +60,9 @@ try {
     process.exitCode = core.ExitCode.Failure;
   }
 } catch (err) {
-  core.setFailed(`Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  core.setFailed(
+    `Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+  );
   process.exitCode = core.ExitCode.Failure;
 }
 

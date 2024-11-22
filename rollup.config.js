@@ -1,11 +1,13 @@
-import { nodeResolve } from "@rollup/plugin-node-resolve";
-import typescript from "@rollup/plugin-typescript";
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
 
-export default {
-  input: "src/main.ts",
+const config = {
+  input: 'src/main.ts',
   output: {
-    dir: "dist",
-    entryFileNames: "[name].bundle.mjs",
+    dir: 'dist',
+    entryFileNames: '[name].bundle.mjs',
   },
   plugins: [nodeResolve(), typescript()],
 };
+
+export default config;
