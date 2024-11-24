@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": false,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
