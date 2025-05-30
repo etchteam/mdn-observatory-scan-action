@@ -3,8 +3,8 @@ name: Mozilla Observatory Scan
 author: Etch
 description: Scan a website using Mozilla Observatory
 branding:
-  icon: folder-plus
-  color: black
+  icon: lock
+  color: red
 inputs:
   host:
     description: Host to scan
