@@ -25,6 +25,7 @@
     "@tsconfig/node22": "^22.0.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.15.27",
+    "conventional-changelog-conventionalcommits": "^9.0.0",
     "jest": "^29.7.0",
     "prettier": "^3.3.3",
     "semantic-release": "^24.2.5",
