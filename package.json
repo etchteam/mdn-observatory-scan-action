@@ -8,9 +8,8 @@
     "npm": "^10"
   },
   "scripts": {
-    "build": "rollup -c",
-    "test": "jest --pass-with-no-tests",
-    "watch": "rollup -c -w"
+    "build": "tsc --build",
+    "test": "jest --pass-with-no-tests"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
