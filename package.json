@@ -10,7 +10,8 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "test": "jest --pass-with-no-tests"
+    "test": "jest --pass-with-no-tests",
+    "release": "semantic-release"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
