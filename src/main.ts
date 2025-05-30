@@ -1,17 +1,19 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 
-import * as core from '@actions/core';
+import { getInput, setOutput, setFailed, ExitCode } from '@actions/core';
 
 import { Response } from './Response.type.js';
 
 try {
-  const host = core.getInput('host', { required: true });
-  const scoreInput = core.getInput('passing-score', {
+  const host = getInput('host', { required: true });
+  const scoreInput = getInput('passing-score', {
     required: false,
   });
   const passingScore = scoreInput.length > 0 ? parseInt(scoreInput, 10) : 100;
 
-  const scan = execSync(`npx @mdn/mdn-http-observatory ${host}`);
+  const cleanedHost = host.replace(/https?:\/\//, '');
+
+  const scan = execSync(`npx @mdn/mdn-http-observatory ${cleanedHost}`);
 
   const output: Response = JSON.parse(scan.toString());
 
@@ -53,17 +55,17 @@ try {
   </table>
   `;
 
-  core.setOutput('results', results);
+  setOutput('results', results);
 
   if (output.scan.score < passingScore) {
-    core.setFailed('Scan failed: Actual score is lower than the passing score');
-    process.exitCode = core.ExitCode.Failure;
+    setFailed('Scan failed: Actual score is lower than the passing score');
+    process.exitCode = ExitCode.Failure;
   }
 } catch (err) {
-  core.setFailed(
+  setFailed(
     `Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
   );
-  process.exitCode = core.ExitCode.Failure;
+  process.exitCode = ExitCode.Failure;
 }
 
 process.exit();
