@@ -15,4 +15,4 @@ inputs:
     default: 100
 runs:
   using: node22
-  main: dist/main.bundle.mjs
+  main: dist/main.js
