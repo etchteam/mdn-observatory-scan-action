@@ -6,6 +6,7 @@ import {
   ExitCode,
   summary,
   setOutput,
+  warning,
 } from '@actions/core';
 import { SummaryTableRow } from '@actions/core/lib/summary.js';
 
@@ -22,6 +23,8 @@ function getHost(): string {
 }
 
 function getScore(): number {
+  let passingScore = 100;
+
   const scoreInput = getInput('passing-score', {
     trimWhitespace: true,
   });
@@ -30,11 +33,22 @@ function getScore(): number {
     const parsedScore = parseInt(scoreInput, 10);
 
     if (!isNaN(parsedScore)) {
-      return parsedScore;
+      passingScore = parsedScore;
     }
   }
 
-  return 100;
+  if (passingScore < 0) {
+    warning('Passing score cannot be negative. Setting to 0 instead.');
+    passingScore = 0;
+  }
+
+  // See https://developer.mozilla.org/en-US/observatory/docs/tests_and_scoring#scoring_methodology for maximum score
+  if (passingScore > 145) {
+    warning('Passing score cannot exceed 145. Setting to 145 instead.');
+    passingScore = 145;
+  }
+
+  return passingScore;
 }
 
 function tidyKey(key: string): string {

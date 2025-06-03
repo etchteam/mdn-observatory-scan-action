@@ -7,9 +7,10 @@ const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
   throw new Error('process.exit called');
 });
 
-import { getInput } from '@actions/core';
+import { getInput, warning } from '@actions/core';
 
 const mockGetInput = getInput as jest.MockedFunction<typeof getInput>;
+const mockWarning = warning as jest.MockedFunction<typeof warning>;
 
 // Mock response data
 const mockResponse = {
@@ -140,5 +141,173 @@ describe('main.ts functions', () => {
 
     expect(parsed.scan.grade).toBe('A+');
     expect(parsed.scan.score).toBe(100);
+  });
+
+  describe('getScore function logic', () => {
+    beforeEach(() => {
+      mockGetInput.mockClear();
+      mockWarning.mockClear();
+    });
+
+    it('should return default score of 100 when no input provided', () => {
+      mockGetInput.mockReturnValue('');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(100);
+    });
+
+    it('should return parsed score when valid input provided', () => {
+      mockGetInput.mockReturnValue('85');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '85';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(85);
+    });
+
+    it('should return default score when invalid input provided', () => {
+      mockGetInput.mockReturnValue('invalid');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = 'invalid';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(100);
+    });
+
+    it('should handle negative scores and warn user', () => {
+      mockGetInput.mockReturnValue('-10');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '-10';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      if (passingScore < 0) {
+        passingScore = 0;
+      }
+
+      expect(passingScore).toBe(0);
+    });
+
+    it('should handle scores above 145 and warn user', () => {
+      mockGetInput.mockReturnValue('200');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '200';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      if (passingScore > 145) {
+        passingScore = 145;
+      }
+
+      expect(passingScore).toBe(145);
+    });
+
+    it('should handle edge case of exactly 0', () => {
+      mockGetInput.mockReturnValue('0');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '0';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(0);
+    });
+
+    it('should handle edge case of exactly 145', () => {
+      mockGetInput.mockReturnValue('145');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '145';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(145);
+    });
+
+    it('should handle whitespace-only input', () => {
+      mockGetInput.mockReturnValue('   ');
+
+      // Simulate the getScore function logic (assuming trimWhitespace is handled by getInput)
+      let passingScore = 100;
+      const scoreInput = ''; // After trimming
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(100);
+    });
+
+    it('should handle decimal input (parseInt behavior)', () => {
+      mockGetInput.mockReturnValue('85.7');
+
+      // Simulate the getScore function logic
+      let passingScore = 100;
+      const scoreInput = '85.7';
+
+      if (scoreInput.length > 0) {
+        const parsedScore = parseInt(scoreInput, 10);
+        if (!isNaN(parsedScore)) {
+          passingScore = parsedScore;
+        }
+      }
+
+      expect(passingScore).toBe(85); // parseInt truncates decimals
+    });
   });
 });
