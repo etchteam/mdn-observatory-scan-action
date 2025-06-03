@@ -1,71 +1,159 @@
 import { execSync } from 'node:child_process';
 
-import { getInput, setOutput, setFailed, ExitCode } from '@actions/core';
+import {
+  getInput,
+  setFailed,
+  ExitCode,
+  summary,
+  setOutput,
+  warning,
+} from '@actions/core';
+import { SummaryTableRow } from '@actions/core/lib/summary.js';
 
 import { Response } from './Response.type.js';
 
-try {
-  const host = getInput('host', { required: true });
-  const scoreInput = getInput('passing-score', {
-    required: false,
-  });
-  const passingScore = scoreInput.length > 0 ? parseInt(scoreInput, 10) : 100;
+function getHost(): string {
+  const host = getInput('host', { required: true, trimWhitespace: true });
 
-  const cleanedHost = host.replace(/https?:\/\//, '');
-
-  const scan = execSync(`npx @mdn/mdn-http-observatory ${cleanedHost}`);
-
-  const output: Response = JSON.parse(scan.toString());
-
-  const results = `
-  # HTTP Observatory Results
-
-  ## Summary
-
-  - Grade: ${output.scan.grade}
-  - Score: ${output.scan.score}
-  - Tests Passed: ${output.scan.testsPassed} / ${output.scan.testsQuantity}
-  - Full Results: https://developer.mozilla.org/en-US/observatory/analyze?host=${host}
-
-  ## Result
-
-  <table>
-    <thead>
-      <tr>
-        <th>Test</th>
-        <th>Score</th>
-      </tr>
-    </thead>
-    <tbody>${Object.entries(output.tests)
-      .map(
-        ([key, value]) => `
-      <tr>
-        <td>${key
-          .split('-')
-          .map(
-            (p) => `${String(p).charAt(0).toUpperCase()}${String(p).slice(1)}`,
-          )
-          .join(' ')}</td>
-        <td>${value.pass === true ? 'Pass' : 'Fail'}</td>
-        <td>${value.scoreModifier}</td>
-      </tr>
-  `,
-      )
-      .join('')}  </tbody>
-  </table>
-  `;
-
-  setOutput('results', results);
-
-  if (output.scan.score < passingScore) {
-    setFailed('Scan failed: Actual score is lower than the passing score');
-    process.exitCode = ExitCode.Failure;
+  try {
+    return new URL(host).host;
+  } catch (error) {
+    throw new Error('Invalid host URL');
   }
-} catch (err) {
-  setFailed(
-    `Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-  );
-  process.exitCode = ExitCode.Failure;
 }
 
-process.exit();
+function getScore(): number {
+  let passingScore = 100;
+
+  const scoreInput = getInput('passing-score', {
+    trimWhitespace: true,
+  });
+
+  if (scoreInput.length > 0) {
+    const parsedScore = parseInt(scoreInput, 10);
+
+    if (!isNaN(parsedScore)) {
+      passingScore = parsedScore;
+    }
+  }
+
+  if (passingScore < 0) {
+    warning('Passing score cannot be negative. Setting to 0 instead.');
+    passingScore = 0;
+  }
+
+  // See https://developer.mozilla.org/en-US/observatory/docs/tests_and_scoring#scoring_methodology for maximum score
+  if (passingScore > 145) {
+    warning('Passing score cannot exceed 145. Setting to 145 instead.');
+    passingScore = 145;
+  }
+
+  return passingScore;
+}
+
+function tidyKey(key: string): string {
+  return key
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function passText(pass: boolean): string {
+  return pass ? '✅ Pass' : '❌ Fail';
+}
+
+function generateReportRow([key, value]: [
+  string,
+  { pass: boolean; scoreModifier: number },
+]): string {
+  return `- ${tidyKey(key)}: ${passText(value.pass)} (Score: ${value.scoreModifier})`;
+}
+
+function generateReport(output: Response, host: string): string {
+  const {
+    scan: { grade, score, testsPassed, testsQuantity },
+    tests,
+  } = output;
+
+  return `Mozilla HTTP Observatory Results
+Scanned: ${host}
+Summary:
+- Grade: ${grade}
+- Score: ${score}
+- Tests Passed: ${testsPassed} / ${testsQuantity}
+
+Tests:
+
+${Object.entries(tests).map(generateReportRow).join('\n')}
+
+[View the full report on MDN](https://developer.mozilla.org/en-US/observatory/analyze?host=${host})
+`;
+}
+
+function generateSummaryRow([key, value]: [
+  string,
+  { pass: boolean; scoreModifier: number },
+]): SummaryTableRow {
+  return [
+    { data: tidyKey(key) },
+    { data: passText(value.pass) },
+    { data: value.scoreModifier.toString() },
+  ];
+}
+
+async function generateSummary(output: Response, host: string) {
+  const {
+    scan: { grade, score, testsPassed, testsQuantity },
+    tests,
+  } = output;
+
+  await summary
+    .addHeading('Mozilla HTTP Observatory Results')
+    .addLink(`Scanned: ${host}`, host)
+    .addDetails(
+      'Summary',
+      `- Grade: ${grade}
+      - Score: ${score}
+      - Tests Passed: ${testsPassed} / ${testsQuantity}`,
+    )
+    .addTable([
+      [
+        { data: 'Test', header: true },
+        { data: 'Passed', header: true },
+        { data: 'Score', header: true },
+      ],
+      ...Object.entries(tests).map(generateSummaryRow),
+    ])
+    .addLink(
+      'View the full report on MDN',
+      `https://developer.mozilla.org/en-US/observatory/analyze?host=${host}`,
+    )
+    .write();
+}
+
+async function main() {
+  try {
+    const host = getHost();
+    const passingScore = getScore();
+    const scan = execSync(`npx @mdn/mdn-http-observatory ${host}`);
+    const output: Response = JSON.parse(scan.toString());
+
+    await generateSummary(output, host);
+
+    setOutput('report', generateReport(output, host));
+
+    if (output.scan.score < passingScore) {
+      setFailed(`Scan failed: Score is lower than ${passingScore}`);
+      process.exitCode = ExitCode.Failure;
+    }
+  } catch (err) {
+    setFailed(
+      `Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+    );
+    process.exitCode = ExitCode.Failure;
+  }
+
+  process.exit();
+}
+
+main();
