@@ -12,7 +12,7 @@ inputs:
   passingScore:
     description: Minimum score to pass
     required: false
-    default: 100
+    default: 90
 runs:
   using: node24
   main: dist/main.js

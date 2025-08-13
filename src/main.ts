@@ -23,7 +23,8 @@ function getHost(): string {
 }
 
 function getScore(): number {
-  let passingScore = 100;
+  // 90 equates to an “A” rating
+  let passingScore = 90;
 
   const scoreInput = getInput('passing-score', {
     trimWhitespace: true,
