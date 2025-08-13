@@ -3,28 +3,17 @@
 #
 # See all available variables at https://megalinter.io/latest/config-file/ and in
 # linters documentation
-
 APPLY_FIXES: none
-
-DISABLE:
-  - COPYPASTE
-  - SPELL
+VALIDATE_ALL_CODEBASE: false
 
 DISABLE_LINTERS:
-  # We use stylelint for CSS and SCSS linting
-  - CSS_SCSS_LINT
-  # Disable in favour of eslint
-  - JAVASCRIPT_STANDARD
-  # We use dependabot for vulnerability monitoring and patching
-  - REPOSITORY_GRYPE
-  # Not needed in this repository
-  - REPOSITORY_TRIVY
-  # Disable in favour of eslint
-  - TYPESCRIPT_STANDARD
-  # Link check flags localhost links in the contributing docs
-  - MARKDOWN_MARKDOWN_LINK_CHECK
-  # V8R keeps giving false positives
-  - YAML_V8R
+  - COPYPASTE_JSCPD # SonarCloud handles this for us
+  - JAVASCRIPT_STANDARD # Disable in favour of eslint
+  - MARKDOWN_MARKDOWN_LINK_CHECK # Link check flags localhost links in the contributing docs
+  - REPOSITORY_GRYPE # We use dependabot for vulnerability monitoring and patching
+  - REPOSITORY_TRIVY # Not needed in this repository
+  - TYPESCRIPT_STANDARD # Disable in favour of eslint
+  - YAML_V8R # V8R keeps giving false positives
 
 SHOW_ELAPSED_TIME: true
 
@@ -35,5 +24,6 @@ JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.json
 TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.json
 
 # Linters configuration
-REPOSITORY_GITLEAKS_DISABLE_ERRORS: true
-REPOSITORY_TRUFFLEHOG_ARGUMENTS: --exclude_paths .trufflehog-ignore
+REPOSITORY_GITLEAKS_PR_COMMITS_SCAN: true
+SPELL_CSPELL_ANALYZE_FILE_NAMES: false
+SPELL_CSPELL_FILE_EXTENSIONS: ['.md', '.json']
