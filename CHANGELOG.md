@@ -1,3 +1,14 @@
+## [1.1.0](https://github.com/etchteam/mdn-observatory-scan-action/compare/v1.0.0...v1.1.0) (2025-08-13)
+
+### Features
+
+* handle edge case score inputs ([7871aa5](https://github.com/etchteam/mdn-observatory-scan-action/commit/7871aa5d84305dccef0dd07496de26da260d3e7d))
+* set output and summary ([cd7478c](https://github.com/etchteam/mdn-observatory-scan-action/commit/cd7478ce9dd8cc52af25c88933a5b57edc7f8cfa))
+
+### Bug Fixes
+
+* bump node_extra_ca_certs_mozilla_bundle to resolve 404ing url ([3cf0303](https://github.com/etchteam/mdn-observatory-scan-action/commit/3cf030303d4520b61c37d21c2a5cc1c511d588fd))
+
 ## 1.0.0 (2025-05-30)
 
 ### Features
