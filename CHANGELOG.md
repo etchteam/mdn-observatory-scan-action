@@ -1,3 +1,13 @@
+## [1.2.0](https://github.com/etchteam/mdn-observatory-scan-action/compare/v1.1.0...v1.2.0) (2025-08-15)
+
+### Features
+
+* reduce passing score to "A" ([bebe733](https://github.com/etchteam/mdn-observatory-scan-action/commit/bebe73350531105dc8db42fef200373a7d5db318))
+
+### Bug Fixes
+
+* use supported node version ([450b885](https://github.com/etchteam/mdn-observatory-scan-action/commit/450b8850fc4ebd6f1beff70c95c3feaffe0d3905))
+
 ## [1.1.0](https://github.com/etchteam/mdn-observatory-scan-action/compare/v1.0.0...v1.1.0) (2025-08-13)
 
 ### Features
