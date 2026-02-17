@@ -7,3 +7,8 @@ indent_size = 2
 indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+# Ignore paths
+[/dist/**]
+trim_trailing_whitespace = unset
+indent_size = unset
