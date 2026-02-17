@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/etchteam/mdn-observatory-scan-action/compare/v1.2.0...v1.3.0) (2026-02-17)
+
+### Features
+
+* commit dist files and bundle dependencies ([b5389e6](https://github.com/etchteam/mdn-observatory-scan-action/commit/b5389e6c8fc5079d669d7250d07895029dc392ef))
+
 ## [1.2.0](https://github.com/etchteam/mdn-observatory-scan-action/compare/v1.1.0...v1.2.0) (2025-08-15)
 
 ### Features
