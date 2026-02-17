@@ -5,6 +5,8 @@
 # linters documentation
 APPLY_FIXES: none
 VALIDATE_ALL_CODEBASE: false
+SHOW_ELAPSED_TIME: true
+FILEIO_REPORTER: false
 
 DISABLE_LINTERS:
   - COPYPASTE_JSCPD # SonarCloud handles this for us
@@ -14,10 +16,6 @@ DISABLE_LINTERS:
   - REPOSITORY_TRIVY # Not needed in this repository
   - TYPESCRIPT_STANDARD # Disable in favour of eslint
   - YAML_V8R # V8R keeps giving false positives
-
-SHOW_ELAPSED_TIME: true
-
-FILEIO_REPORTER: false
 
 # Config paths
 JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.json
