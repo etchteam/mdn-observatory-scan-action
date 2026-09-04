@@ -1,3 +1,9 @@
+/** The subset of a test result that the report and summary render. */
+export interface TestResult {
+  pass: boolean;
+  scoreModifier: number;
+}
+
 export interface Response {
   scan: {
     algorithmVersion: number;

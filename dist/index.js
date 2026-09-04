@@ -25555,6 +25555,211 @@ module.exports = {
 
 /***/ }),
 
+/***/ 9407:
+/***/ ((module, __unused_webpack___webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+/* harmony import */ var _main_js__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(144);
+
+await (0,_main_js__WEBPACK_IMPORTED_MODULE_0__/* .run */ .eF)();
+
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } }, 1);
+
+/***/ }),
+
+/***/ 144:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  eF: () => (/* binding */ run)
+});
+
+// UNUSED EXPORTS: SCAN_CLI, SCAN_CLI_PATH, generateReport, getHost, getPassingScore, parseScanOutput, passText, reportUrl, scanErrorMessage, tidyKey
+
+;// CONCATENATED MODULE: external "node:child_process"
+const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:child_process");
+;// CONCATENATED MODULE: external "node:path"
+const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
+;// CONCATENATED MODULE: external "node:url"
+const external_node_url_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:url");
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(7484);
+;// CONCATENATED MODULE: ./src/main.ts
+
+
+
+
+// The scan CLI ships alongside the bundle in dist/vendor, so a scan installs
+// nothing: no registry fetch, no lifecycle scripts and no CA bundle download in
+// the consuming workflow. dist/vendor/package-lock.json pins the whole tree.
+// The CLI stays a subprocess because it sets NODE_EXTRA_CA_CERTS, which node
+// only reads at startup.
+const SCAN_CLI_PATH = 'vendor/node_modules/@mdn/mdn-http-observatory/bin/wrapper.js';
+const SCAN_CLI = (0,external_node_path_namespaceObject.join)((0,external_node_path_namespaceObject.dirname)((0,external_node_url_namespaceObject.fileURLToPath)(import.meta.url)), SCAN_CLI_PATH);
+// 90 equates to an “A” rating
+const DEFAULT_PASSING_SCORE = 90;
+// See https://developer.mozilla.org/en-US/observatory/docs/tests_and_scoring#scoring_methodology
+const MAX_PASSING_SCORE = 145;
+// The default 1MB is not enough for sites with many cookies or scripts
+const MAX_BUFFER = 32 * 1024 * 1024;
+function getHost() {
+    const input = (0,core.getInput)('host', { required: true, trimWhitespace: true });
+    const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(input)
+        ? input
+        : `https://${input}`;
+    try {
+        return new URL(candidate).host;
+    }
+    catch {
+        throw new Error(`Invalid host: ${input}`);
+    }
+}
+function getPassingScore() {
+    const scoreInput = (0,core.getInput)('passing-score', { trimWhitespace: true });
+    if (scoreInput.length === 0) {
+        return DEFAULT_PASSING_SCORE;
+    }
+    const passingScore = Number.parseInt(scoreInput, 10);
+    if (Number.isNaN(passingScore)) {
+        (0,core.warning)(`Passing score “${scoreInput}” is not a number. Using ${DEFAULT_PASSING_SCORE} instead.`);
+        return DEFAULT_PASSING_SCORE;
+    }
+    if (passingScore < 0) {
+        (0,core.warning)('Passing score cannot be negative. Setting to 0 instead.');
+        return 0;
+    }
+    if (passingScore > MAX_PASSING_SCORE) {
+        (0,core.warning)(`Passing score cannot exceed ${MAX_PASSING_SCORE}. Setting to ${MAX_PASSING_SCORE} instead.`);
+        return MAX_PASSING_SCORE;
+    }
+    return passingScore;
+}
+/**
+ * The scan CLI reports failures as `{"error": "..."}` on stdout alongside a
+ * non-zero exit code, so the useful message is on the thrown error, not in it.
+ */
+function scanErrorMessage(err) {
+    const stdout = err?.stdout
+        ?.toString()
+        .trim();
+    if (stdout) {
+        try {
+            const parsed = JSON.parse(stdout);
+            if (typeof parsed?.error === 'string') {
+                return parsed.error;
+            }
+        }
+        catch {
+            // Not JSON — fall back to the error's own message.
+        }
+    }
+    return err instanceof Error ? err.message : 'Unknown error';
+}
+function parseScanOutput(stdout) {
+    if (stdout.trim().length === 0) {
+        throw new Error('The scan produced no output');
+    }
+    const output = JSON.parse(stdout);
+    if (output.scan.error) {
+        throw new Error(output.scan.error);
+    }
+    return output;
+}
+function runScan(host) {
+    let stdout;
+    try {
+        stdout = (0,external_node_child_process_namespaceObject.execFileSync)(process.execPath, [SCAN_CLI, host], {
+            encoding: 'utf8',
+            maxBuffer: MAX_BUFFER,
+            stdio: ['ignore', 'pipe', 'inherit'],
+        });
+    }
+    catch (err) {
+        throw new Error(scanErrorMessage(err));
+    }
+    return parseScanOutput(stdout);
+}
+function reportUrl(host) {
+    return `https://developer.mozilla.org/en-US/observatory/analyze?host=${encodeURIComponent(host)}`;
+}
+function tidyKey(key) {
+    return key
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+function passText(pass) {
+    return pass ? '✅ Pass' : '❌ Fail';
+}
+function generateReportRow([key, value]) {
+    return `- ${tidyKey(key)}: ${passText(value.pass)} (Score: ${value.scoreModifier})`;
+}
+function generateReport(output, host) {
+    const { scan: { grade, score, testsPassed, testsQuantity }, tests, } = output;
+    return `Mozilla HTTP Observatory Results
+Scanned: ${host}
+Summary:
+- Grade: ${grade}
+- Score: ${score}
+- Tests Passed: ${testsPassed} / ${testsQuantity}
+
+Tests:
+
+${Object.entries(tests).map(generateReportRow).join('\n')}
+
+[View the full report on MDN](${reportUrl(host)})
+`;
+}
+function generateSummaryRow([key, value]) {
+    return [
+        { data: tidyKey(key) },
+        { data: passText(value.pass) },
+        { data: value.scoreModifier.toString() },
+    ];
+}
+async function generateSummary(output, host) {
+    const { scan: { grade, score, testsPassed, testsQuantity }, tests, } = output;
+    await core.summary
+        .addHeading('Mozilla HTTP Observatory Results')
+        .addLink(`Scanned: ${host}`, `https://${host}`)
+        .addDetails('Summary', 
+    // The leading blank line lets GitHub render the list inside the <details>
+    `\n\n- Grade: ${grade}\n- Score: ${score}\n- Tests Passed: ${testsPassed} / ${testsQuantity}\n`)
+        .addTable([
+        [
+            { data: 'Test', header: true },
+            { data: 'Passed', header: true },
+            { data: 'Score', header: true },
+        ],
+        ...Object.entries(tests).map(generateSummaryRow),
+    ])
+        .addLink('View the full report on MDN', reportUrl(host))
+        .write();
+}
+async function run() {
+    try {
+        const host = getHost();
+        const passingScore = getPassingScore();
+        const output = runScan(host);
+        await generateSummary(output, host);
+        (0,core.setOutput)('report', generateReport(output, host));
+        if (output.scan.score < passingScore) {
+            // setFailed sets the exit code; calling process.exit() here would
+            // truncate the ::error:: command still buffered on stdout.
+            (0,core.setFailed)(`Scan failed: score ${output.scan.score} is lower than ${passingScore}`);
+        }
+    }
+    catch (err) {
+        (0,core.setFailed)(`Scan failed: ${scanErrorMessage(err)}`);
+    }
+}
+
+
+/***/ }),
+
 /***/ 2613:
 /***/ ((module) => {
 
@@ -27418,124 +27623,101 @@ module.exports = parseParams
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/async module */
+/******/ (() => {
+/******/ 	var webpackQueues = typeof Symbol === "function" ? Symbol("webpack queues") : "__webpack_queues__";
+/******/ 	var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
+/******/ 	var webpackError = typeof Symbol === "function" ? Symbol("webpack error") : "__webpack_error__";
+/******/ 	var resolveQueue = (queue) => {
+/******/ 		if(queue && queue.d < 1) {
+/******/ 			queue.d = 1;
+/******/ 			queue.forEach((fn) => (fn.r--));
+/******/ 			queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
+/******/ 		}
+/******/ 	}
+/******/ 	var wrapDeps = (deps) => (deps.map((dep) => {
+/******/ 		if(dep !== null && typeof dep === "object") {
+/******/ 			if(dep[webpackQueues]) return dep;
+/******/ 			if(dep.then) {
+/******/ 				var queue = [];
+/******/ 				queue.d = 0;
+/******/ 				dep.then((r) => {
+/******/ 					obj[webpackExports] = r;
+/******/ 					resolveQueue(queue);
+/******/ 				}, (e) => {
+/******/ 					obj[webpackError] = e;
+/******/ 					resolveQueue(queue);
+/******/ 				});
+/******/ 				var obj = {};
+/******/ 				obj[webpackQueues] = (fn) => (fn(queue));
+/******/ 				return obj;
+/******/ 			}
+/******/ 		}
+/******/ 		var ret = {};
+/******/ 		ret[webpackQueues] = x => {};
+/******/ 		ret[webpackExports] = dep;
+/******/ 		return ret;
+/******/ 	}));
+/******/ 	__nccwpck_require__.a = (module, body, hasAwait) => {
+/******/ 		var queue;
+/******/ 		hasAwait && ((queue = []).d = -1);
+/******/ 		var depQueues = new Set();
+/******/ 		var exports = module.exports;
+/******/ 		var currentDeps;
+/******/ 		var outerResolve;
+/******/ 		var reject;
+/******/ 		var promise = new Promise((resolve, rej) => {
+/******/ 			reject = rej;
+/******/ 			outerResolve = resolve;
+/******/ 		});
+/******/ 		promise[webpackExports] = exports;
+/******/ 		promise[webpackQueues] = (fn) => (queue && fn(queue), depQueues.forEach(fn), promise["catch"](x => {}));
+/******/ 		module.exports = promise;
+/******/ 		body((deps) => {
+/******/ 			currentDeps = wrapDeps(deps);
+/******/ 			var fn;
+/******/ 			var getResult = () => (currentDeps.map((d) => {
+/******/ 				if(d[webpackError]) throw d[webpackError];
+/******/ 				return d[webpackExports];
+/******/ 			}))
+/******/ 			var promise = new Promise((resolve) => {
+/******/ 				fn = () => (resolve(getResult));
+/******/ 				fn.r = 0;
+/******/ 				var fnQueue = (q) => (q !== queue && !depQueues.has(q) && (depQueues.add(q), q && !q.d && (fn.r++, q.push(fn))));
+/******/ 				currentDeps.map((dep) => (dep[webpackQueues](fnQueue)));
+/******/ 			});
+/******/ 			return fn.r ? promise : getResult();
+/******/ 		}, (err) => ((err ? reject(promise[webpackError] = err) : outerResolve(exports)), resolveQueue(queue)));
+/******/ 		queue && queue.d < 0 && (queue.d = 0);
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
-var __webpack_exports__ = {};
-
-;// CONCATENATED MODULE: external "node:child_process"
-const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:child_process");
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(7484);
-;// CONCATENATED MODULE: ./src/main.ts
-
-
-function getHost() {
-    const host = (0,core.getInput)('host', { required: true, trimWhitespace: true });
-    try {
-        return new URL(host).host;
-    }
-    catch (error) {
-        throw new Error('Invalid host URL');
-    }
-}
-function getScore() {
-    // 90 equates to an “A” rating
-    let passingScore = 90;
-    const scoreInput = (0,core.getInput)('passing-score', {
-        trimWhitespace: true,
-    });
-    if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-            passingScore = parsedScore;
-        }
-    }
-    if (passingScore < 0) {
-        (0,core.warning)('Passing score cannot be negative. Setting to 0 instead.');
-        passingScore = 0;
-    }
-    // See https://developer.mozilla.org/en-US/observatory/docs/tests_and_scoring#scoring_methodology for maximum score
-    if (passingScore > 145) {
-        (0,core.warning)('Passing score cannot exceed 145. Setting to 145 instead.');
-        passingScore = 145;
-    }
-    return passingScore;
-}
-function tidyKey(key) {
-    return key
-        .split('-')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-}
-function passText(pass) {
-    return pass ? '✅ Pass' : '❌ Fail';
-}
-function generateReportRow([key, value]) {
-    return `- ${tidyKey(key)}: ${passText(value.pass)} (Score: ${value.scoreModifier})`;
-}
-function generateReport(output, host) {
-    const { scan: { grade, score, testsPassed, testsQuantity }, tests, } = output;
-    return `Mozilla HTTP Observatory Results
-Scanned: ${host}
-Summary:
-- Grade: ${grade}
-- Score: ${score}
-- Tests Passed: ${testsPassed} / ${testsQuantity}
-
-Tests:
-
-${Object.entries(tests).map(generateReportRow).join('\n')}
-
-[View the full report on MDN](https://developer.mozilla.org/en-US/observatory/analyze?host=${host})
-`;
-}
-function generateSummaryRow([key, value]) {
-    return [
-        { data: tidyKey(key) },
-        { data: passText(value.pass) },
-        { data: value.scoreModifier.toString() },
-    ];
-}
-async function generateSummary(output, host) {
-    const { scan: { grade, score, testsPassed, testsQuantity }, tests, } = output;
-    await core.summary
-        .addHeading('Mozilla HTTP Observatory Results')
-        .addLink(`Scanned: ${host}`, host)
-        .addDetails('Summary', `- Grade: ${grade}
-      - Score: ${score}
-      - Tests Passed: ${testsPassed} / ${testsQuantity}`)
-        .addTable([
-        [
-            { data: 'Test', header: true },
-            { data: 'Passed', header: true },
-            { data: 'Score', header: true },
-        ],
-        ...Object.entries(tests).map(generateSummaryRow),
-    ])
-        .addLink('View the full report on MDN', `https://developer.mozilla.org/en-US/observatory/analyze?host=${host}`)
-        .write();
-}
-async function main() {
-    try {
-        const host = getHost();
-        const passingScore = getScore();
-        const scan = (0,external_node_child_process_namespaceObject.execSync)(`npx @mdn/mdn-http-observatory ${host}`);
-        const output = JSON.parse(scan.toString());
-        await generateSummary(output, host);
-        (0,core.setOutput)('report', generateReport(output, host));
-        if (output.scan.score < passingScore) {
-            (0,core.setFailed)(`Scan failed: Score is lower than ${passingScore}`);
-            process.exitCode = core.ExitCode.Failure;
-        }
-    }
-    catch (err) {
-        (0,core.setFailed)(`Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        process.exitCode = core.ExitCode.Failure;
-    }
-    process.exit();
-}
-main();
-
+/******/ 
+/******/ // startup
+/******/ // Load entry module and return exports
+/******/ // This entry module used 'module' so it can't be inlined
+/******/ var __webpack_exports__ = __nccwpck_require__(9407);
+/******/ __webpack_exports__ = await __webpack_exports__;
+/******/ 

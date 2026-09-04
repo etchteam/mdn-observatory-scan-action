@@ -1,0 +1,5 @@
+# ncc generates dist/package.json as a bare {"type":"module"} marker with no
+# name or version, and dist/vendor ships 273 third-party manifests we do not
+# control. npm-package-json-lint runs in project mode, which ignores
+# MegaLinter's FILTER_REGEX_EXCLUDE, hence this file.
+dist/**

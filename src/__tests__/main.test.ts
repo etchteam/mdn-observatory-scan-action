@@ -1,313 +1,221 @@
-// Mock dependencies before any imports
-jest.mock('node:child_process');
-jest.mock('@actions/core');
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
-// Mock process.exit to prevent actual exits during tests
-const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-  throw new Error('process.exit called');
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
+import { Response } from '../Response.type.js';
+import {
+  SCAN_CLI_PATH,
+  generateReport,
+  getHost,
+  getPassingScore,
+  parseScanOutput,
+  passText,
+  reportUrl,
+  scanErrorMessage,
+} from '../main.js';
+
+function setInput(name: string, value: string) {
+  process.env[`INPUT_${name.toUpperCase()}`] = value;
+}
+
+function scanResponse(overrides: Partial<Response['scan']> = {}): Response {
+  return {
+    scan: {
+      grade: 'A+',
+      score: 100,
+      error: null,
+      testsPassed: 9,
+      testsQuantity: 10,
+      ...overrides,
+    },
+    tests: {
+      'content-security-policy': { pass: true, scoreModifier: 5 },
+      'x-frame-options': { pass: false, scoreModifier: -20 },
+    },
+  } as unknown as Response;
+}
+
+describe('getHost', () => {
+  beforeEach(() => {
+    delete process.env.INPUT_HOST;
+  });
+
+  // The input arrives in the variable GitHub sets for the `host` action input
+  it.each([
+    ['https://etch.co', 'etch.co'],
+    ['https://etch.co/some/path?a=b', 'etch.co'],
+    ['etch.co', 'etch.co'],
+    ['https://etch.co:8443', 'etch.co:8443'],
+  ])('reduces %s to the host %s', (input, expected) => {
+    setInput('host', input);
+    expect(getHost()).toBe(expected);
+  });
+
+  it('throws when the input is not a usable host', () => {
+    setInput('host', 'https://');
+    expect(() => getHost()).toThrow('Invalid host: https://');
+  });
+
+  it('throws when the input is missing', () => {
+    expect(() => getHost()).toThrow(/Input required/);
+  });
 });
 
-import { getInput, warning } from '@actions/core';
-
-const mockGetInput = getInput as jest.MockedFunction<typeof getInput>;
-const mockWarning = warning as jest.MockedFunction<typeof warning>;
-
-// Mock response data
-const mockResponse = {
-  scan: {
-    grade: 'A+',
-    score: 100,
-    testsPassed: 10,
-    testsQuantity: 10,
-  },
-  tests: {
-    'content-security-policy': { pass: true, scoreModifier: 5 },
-    'strict-transport-security': { pass: true, scoreModifier: 10 },
-  },
-};
-
-describe('main.ts functions', () => {
+describe('getPassingScore', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    process.exitCode = 0;
-    mockExit.mockClear();
+    // GitHub maps the `passing-score` input to this exact variable name
+    delete process.env['INPUT_PASSING-SCORE'];
   });
 
-  afterAll(() => {
-    mockExit.mockRestore();
+  it('reads the variable GitHub sets for the `passing-score` input', () => {
+    process.env['INPUT_PASSING-SCORE'] = '125';
+    expect(getPassingScore()).toBe(125);
   });
 
-  it('should handle valid URL input', () => {
-    mockGetInput.mockReturnValue('https://example.com/path');
-
-    // Test URL parsing functionality by creating new URL
-    const url = new URL('https://example.com/path');
-    expect(url.host).toBe('example.com');
+  it('defaults to 90 when the input is empty', () => {
+    process.env['INPUT_PASSING-SCORE'] = '   ';
+    expect(getPassingScore()).toBe(90);
   });
 
-  it('should handle invalid URL input', () => {
-    expect(() => new URL('invalid-url')).toThrow();
+  it('defaults to 90 when the input is not a number', () => {
+    process.env['INPUT_PASSING-SCORE'] = 'invalid';
+    expect(getPassingScore()).toBe(90);
   });
 
-  it('should parse valid score input', () => {
-    const scoreInput = '85';
-    const parsedScore = parseInt(scoreInput, 10);
-    expect(parsedScore).toBe(85);
-    expect(isNaN(parsedScore)).toBe(false);
+  it('clamps negative scores to 0', () => {
+    process.env['INPUT_PASSING-SCORE'] = '-10';
+    expect(getPassingScore()).toBe(0);
   });
 
-  it('should handle invalid score input', () => {
-    const scoreInput = 'invalid';
-    const parsedScore = parseInt(scoreInput, 10);
-    expect(isNaN(parsedScore)).toBe(true);
+  it('clamps scores above the 145 maximum', () => {
+    process.env['INPUT_PASSING-SCORE'] = '200';
+    expect(getPassingScore()).toBe(145);
   });
 
-  it('should format keys correctly', () => {
-    const formatKey = (key: string) =>
-      key
-        .split('-')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
+  it.each([
+    ['0', 0],
+    ['145', 145],
+    ['85.7', 85],
+  ])('parses %s as %i', (input, expected) => {
+    process.env['INPUT_PASSING-SCORE'] = input;
+    expect(getPassingScore()).toBe(expected);
+  });
+});
 
-    expect(formatKey('content-security-policy')).toBe(
-      'Content Security Policy',
+describe('SCAN_CLI_PATH', () => {
+  // The vendored CLI is committed next to the bundle, so a missing file here
+  // means the action would fail at scan time in every consuming workflow.
+  // Checked against dist rather than SCAN_CLI because under ts-jest the bundle
+  // directory is src.
+  it('points at the vendored scan CLI committed in dist', () => {
+    expect(existsSync(join(process.cwd(), 'dist', SCAN_CLI_PATH))).toBe(true);
+  });
+});
+
+describe('scanErrorMessage', () => {
+  it('surfaces the error the scan CLI printed to stdout', () => {
+    const err = Object.assign(new Error('Command failed: node …'), {
+      stdout: '{"error":"The site seems to be down."}',
+    });
+
+    expect(scanErrorMessage(err)).toBe('The site seems to be down.');
+  });
+
+  it('falls back to the error message when stdout is not JSON', () => {
+    const err = Object.assign(new Error('Command failed: node …'), {
+      stdout: 'npm ERR! could not resolve',
+    });
+
+    expect(scanErrorMessage(err)).toBe('Command failed: node …');
+  });
+
+  it('falls back to the error message when stdout has no error field', () => {
+    const err = Object.assign(new Error('Command failed: node …'), {
+      stdout: '{"scan":{}}',
+    });
+
+    expect(scanErrorMessage(err)).toBe('Command failed: node …');
+  });
+
+  it('falls back to the error message when there is no stdout', () => {
+    expect(scanErrorMessage(new Error('spawn node ENOENT'))).toBe(
+      'spawn node ENOENT',
     );
-    expect(formatKey('x-frame-options')).toBe('X Frame Options');
   });
 
-  it('should format pass/fail text correctly', () => {
-    const passText = (pass: boolean) => (pass ? '✅ Pass' : '❌ Fail');
+  it('handles a thrown non-error', () => {
+    expect(scanErrorMessage('nope')).toBe('Unknown error');
+  });
+});
 
-    expect(passText(true)).toBe('✅ Pass');
-    expect(passText(false)).toBe('❌ Fail');
+describe('parseScanOutput', () => {
+  it('parses a successful scan', () => {
+    expect(parseScanOutput(JSON.stringify(scanResponse())).scan.grade).toBe(
+      'A+',
+    );
   });
 
-  it('should generate report with correct structure', () => {
-    const host = 'example.com';
-    const { scan } = mockResponse;
-
-    const reportParts = [
-      'Mozilla HTTP Observatory Results',
-      `Scanned: ${host}`,
-      `Grade: ${scan.grade}`,
-      `Score: ${scan.score}`,
-      `Tests Passed: ${scan.testsPassed} / ${scan.testsQuantity}`,
-    ];
-
-    reportParts.forEach((part) => {
-      expect(typeof part).toBe('string');
-      expect(part.length).toBeGreaterThan(0);
-    });
+  it('throws when the scan reported an error', () => {
+    const output = JSON.stringify(scanResponse({ error: 'Site is down' }));
+    expect(() => parseScanOutput(output)).toThrow('Site is down');
   });
 
-  it('should create summary table rows correctly', () => {
-    const testEntry: [string, { pass: boolean; scoreModifier: number }] = [
-      'content-security-policy',
-      { pass: true, scoreModifier: 5 },
-    ];
+  it('throws when the scan produced no output', () => {
+    expect(() => parseScanOutput('  ')).toThrow('The scan produced no output');
+  });
+});
 
-    const [key, value] = testEntry;
-    const formattedKey = key
-      .split('-')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-    const passText = value.pass ? '✅ Pass' : '❌ Fail';
+describe('reportUrl', () => {
+  it('encodes the host', () => {
+    expect(reportUrl('etch.co:8443')).toBe(
+      'https://developer.mozilla.org/en-US/observatory/analyze?host=etch.co%3A8443',
+    );
+  });
+});
 
-    const row = [
-      { data: formattedKey },
-      { data: passText },
-      { data: value.scoreModifier.toString() },
-    ];
+describe('passText', () => {
+  it.each([
+    [true, '✅ Pass'],
+    [false, '❌ Fail'],
+  ])('renders %s as %s', (pass, expected) => {
+    expect(passText(pass)).toBe(expected);
+  });
+});
 
-    expect(row).toHaveLength(3);
-    expect(row[0].data).toBe('Content Security Policy');
-    expect(row[1].data).toBe('✅ Pass');
-    expect(row[2].data).toBe('5');
+describe('generateReport', () => {
+  const report = generateReport(scanResponse(), 'etch.co');
+
+  it('includes the scan summary', () => {
+    expect(report).toContain('Scanned: etch.co');
+    expect(report).toContain('- Grade: A+');
+    expect(report).toContain('- Score: 100');
+    expect(report).toContain('- Tests Passed: 9 / 10');
   });
 
-  it('should test score comparison logic', () => {
-    const score = 75;
-    const passingScore = 80;
-
-    expect(score < passingScore).toBe(true);
-
-    const highScore = 90;
-    expect(highScore < passingScore).toBe(false);
+  it('renders one tidied row per test', () => {
+    expect(report).toContain('- Content Security Policy: ✅ Pass (Score: 5)');
+    expect(report).toContain('- X Frame Options: ❌ Fail (Score: -20)');
   });
 
-  it('should handle JSON parsing', () => {
-    const jsonString = JSON.stringify(mockResponse);
-    const parsed = JSON.parse(jsonString);
-
-    expect(parsed.scan.grade).toBe('A+');
-    expect(parsed.scan.score).toBe(100);
+  it('links to the full MDN report', () => {
+    expect(report).toContain(`(${reportUrl('etch.co')})`);
   });
+});
 
-  describe('getScore function logic', () => {
-    beforeEach(() => {
-      mockGetInput.mockClear();
-      mockWarning.mockClear();
-    });
+describe('run', () => {
+  it('reports a scan failure without exiting the process', async () => {
+    const exit = jest.spyOn(process, 'exit');
+    delete process.env.INPUT_HOST;
+    process.exitCode = 0;
 
-    it('should return default score of 100 when no input provided', () => {
-      mockGetInput.mockReturnValue('');
+    const { run } = await import('../main.js');
+    await run();
 
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '';
+    expect(exit).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
 
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(100);
-    });
-
-    it('should return parsed score when valid input provided', () => {
-      mockGetInput.mockReturnValue('85');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '85';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(85);
-    });
-
-    it('should return default score when invalid input provided', () => {
-      mockGetInput.mockReturnValue('invalid');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = 'invalid';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(100);
-    });
-
-    it('should handle negative scores and warn user', () => {
-      mockGetInput.mockReturnValue('-10');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '-10';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      if (passingScore < 0) {
-        passingScore = 0;
-      }
-
-      expect(passingScore).toBe(0);
-    });
-
-    it('should handle scores above 145 and warn user', () => {
-      mockGetInput.mockReturnValue('200');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '200';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      if (passingScore > 145) {
-        passingScore = 145;
-      }
-
-      expect(passingScore).toBe(145);
-    });
-
-    it('should handle edge case of exactly 0', () => {
-      mockGetInput.mockReturnValue('0');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '0';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(0);
-    });
-
-    it('should handle edge case of exactly 145', () => {
-      mockGetInput.mockReturnValue('145');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '145';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(145);
-    });
-
-    it('should handle whitespace-only input', () => {
-      mockGetInput.mockReturnValue('   ');
-
-      // Simulate the getScore function logic (assuming trimWhitespace is handled by getInput)
-      let passingScore = 100;
-      const scoreInput = ''; // After trimming
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(100);
-    });
-
-    it('should handle decimal input (parseInt behavior)', () => {
-      mockGetInput.mockReturnValue('85.7');
-
-      // Simulate the getScore function logic
-      let passingScore = 100;
-      const scoreInput = '85.7';
-
-      if (scoreInput.length > 0) {
-        const parsedScore = parseInt(scoreInput, 10);
-        if (!isNaN(parsedScore)) {
-          passingScore = parsedScore;
-        }
-      }
-
-      expect(passingScore).toBe(85); // parseInt truncates decimals
-    });
+    exit.mockRestore();
+    process.exitCode = 0;
   });
 });

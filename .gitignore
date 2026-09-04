@@ -40,6 +40,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+# The scan CLI is vendored so the action never installs at scan time
+!dist/vendor/node_modules/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

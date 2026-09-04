@@ -1,31 +1,30 @@
 {
   "name": "root",
-  "main": "dist/main.js",
+  "main": "dist/index.js",
   "private": true,
   "type": "module",
   "version": "1.0.0",
   "engines": {
-    "node": "^22",
-    "npm": "^10"
+    "node": "^24",
+    "npm": "^11"
   },
   "scripts": {
-    "build": "ncc build src/main.ts -o dist",
-    "test": "jest --pass-with-no-tests",
+    "build": "ncc build src/index.ts -o dist",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --pass-with-no-tests",
     "release": "semantic-release",
     "prepare": "husky"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@mdn/mdn-http-observatory": "^1.4.0"
+    "@actions/core": "^1.11.1"
   },
   "devDependencies": {
     "@etchteam/eslint-config": "^2.2.2",
     "@jest/globals": "^29.7.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@tsconfig/node22": "^22.0.2",
+    "@tsconfig/node24": "^24.0.1",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.15.27",
+    "@types/node": "^24.0.0",
     "@vercel/ncc": "^0.38.4",
     "conventional-changelog-conventionalcommits": "^9.0.0",
     "husky": "^9.1.7",
@@ -33,6 +32,6 @@
     "prettier": "^3.3.3",
     "semantic-release": "^24.2.5",
     "ts-jest": "^29.2.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }
