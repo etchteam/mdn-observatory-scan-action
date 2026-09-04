@@ -9,10 +9,13 @@ inputs:
   host:
     description: Host to scan
     required: true
-  passingScore:
+  passing-score:
     description: Minimum score to pass
     required: false
-    default: 90
+    default: "90"
+outputs:
+  report:
+    description: Markdown summary of the scan results
 runs:
   using: node24
   main: dist/index.js

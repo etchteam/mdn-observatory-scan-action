@@ -1,0 +1,10 @@
+{
+  "name": "mdn-observatory-scan-action-runtime",
+  "description": "Vendored scan CLI. Its node_modules is committed so the action never installs at scan time; see README.",
+  "private": true,
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "@mdn/mdn-http-observatory": "1.4.0"
+  }
+}

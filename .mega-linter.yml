@@ -5,6 +5,9 @@
 # linters documentation
 APPLY_FIXES: none
 VALIDATE_ALL_CODEBASE: false
+# Nothing in dist/ is hand-written: it holds the generated ~1MB single-line
+# bundle and the vendored scan CLI. Linting it hangs the job.
+FILTER_REGEX_EXCLUDE: (dist/)
 SHOW_ELAPSED_TIME: true
 FILEIO_REPORTER: false
 
